@@ -1,16 +1,25 @@
-# React + Vite
+# Campus Cue Frontend (`client`)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + Vite + Tailwind CSS v3 frontend for **Campus Cue (`clg.inbox`)**.
 
-Currently, two official plugins are available:
+## Setup & Scripts
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+# Install dependencies (or run `npm run install:all` from the repo root)
+npm install
 
-## React Compiler
+# Start Vite dev server at http://localhost:5173 (proxies /api -> http://localhost:5001)
+npm run dev
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+# Build production bundle into client/dist/
+npm run build
 
-## Expanding the Oxlint configuration
+# Run UserContext & greeting state verification tests
+npm run test:user
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Key Implementation Notes
+
+- **API Client & User Isolation (`src/utils/api.js`):** All API requests go through `apiFetch()`, which attaches the `x-user-email` header (`getActiveUserEmail()`) so backend endpoints return `401` on unauthenticated calls and isolate data per user.
+- **Deployment (`VITE_API_URL`):** Leave `VITE_API_URL` unset during local development to use the Vite `/api` proxy in `vite.config.js`. Set `VITE_API_URL` in `client/.env` (or your hosting provider) when deploying the frontend separately from the backend.
+- **AI Transparency UI:** `InboxView`, `EmailDetailView`, `DigestView`, `HomeView`, and `SettingsModal` surface live `/api/health` AI probe status (`aiMode`, `model`, `aiError`) and distinguish `AI-generated` analysis from `Basic analysis (AI offline)` and `AI Failed` states with one-click reprocess controls.

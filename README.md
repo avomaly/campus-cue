@@ -20,19 +20,21 @@ campus-cue/
 │   │   │   ├── TopBar.jsx          # Header, search, + Ingest, Run AI Pipeline, Avatar
 │   │   │   ├── Sidebar.jsx         # Forest green sidebar (Home, Digest, Inbox, Deadlines, Actions)
 │   │   │   ├── HomeView.jsx        # Editorial Dashboard with personalized greeting & AI Summary
-│   │   │   ├── DigestView.jsx      # Phase 3: Daily Academic Command Center Briefing
-│   │   │   ├── ActionsView.jsx     # Phase 3: Follow-up reminders (Needs reply & Needs action)
-│   │   │   ├── InboxView.jsx       # Category tabs, priority pills, sender initials, search
+│   │   │   ├── DigestView.jsx      # Daily Briefing (AI vs Basic analysis badge & Refresh Digest retry)
+│   │   │   ├── ActionsView.jsx     # Follow-up reminders (Needs reply & Needs action)
+│   │   │   ├── InboxView.jsx       # Category tabs, priority pills, Basic/Failed AI badges & quick retry
 │   │   │   ├── DeadlinesView.jsx   # Timeline view (Upcoming, Overdue, Completed) + .ics Export
-│   │   │   ├── EmailDetailView.jsx # Original email + AI summary + Student overrides + Smart Reply Drafter
+│   │   │   ├── EmailDetailView.jsx # Original email, transparent AI/Basic card, overrides & Smart Reply
 │   │   │   ├── IngestModal.jsx     # 1-Box Quick Paste, .eml/.mbox drop, Extension & IMAP/OAuth sync
 │   │   │   ├── FirstRunModal.jsx   # First-run onboarding ("What should we call you?")
-│   │   │   ├── SettingsModal.jsx   # Edit profile, inline Gemini API key, Clear Samples & Reset Demo
+│   │   │   ├── SettingsModal.jsx   # Profile, live AI health/model status, Gemini key, Reprocess Basic & Demo tools
 │   │   │   ├── MobileBottomNav.jsx # Bottom navigation bar for mobile sketch layout
 │   │   │   └── LandingPage.jsx     # Bold editorial public landing page
 │   │   ├── context/
 │   │   │   ├── UserContext.jsx     # React context & useUser hook for student identity
 │   │   │   └── userUtils.js        # Pure functions for greetings, initials, first name
+│   │   ├── utils/
+│   │   │   └── api.js              # apiUrl(), apiFetch(), and persistent x-user-email scoping
 │   │   ├── App.jsx             # Main application state orchestration & API integration
 │   │   ├── index.css           # Bold editorial theme tokens & paper texture
 │   │   └── main.jsx            # React root mount wrapped in UserProvider
@@ -41,26 +43,27 @@ campus-cue/
 │
 ├── server/                     # Backend (Node.js, Express, Supabase, Google GenAI, Mailparser)
 │   ├── src/
-│   │   ├── index.js            # Express server (Emails, Deduplication, Reprocess, Queue delays, Filters)
-│   │   ├── supabaseClient.js   # Supabase client initializer (graceful fallback)
-│   │   └── sampleData.js       # Realistic university dataset with tricky edge cases
+│   │   ├── index.js            # Express server (401 user isolation, AI probe, Ingestion, Digest, Sync)
+│   │   ├── supabaseClient.js   # Supabase service_role client initializer (graceful local fallback)
+│   │   └── sampleData.js       # Realistic university showcase data (never persisted to Supabase)
 │   ├── services/
-│   │   ├── emailProcessor.js   # Gemini structured JSON processor with retry & safe fallback
-│   │   ├── digestGenerator.js  # Phase 3: Synthesizes daily academic command center digest
+│   │   ├── emailProcessor.js   # Gemini (3.5-flash-lite / 3.7-flash) probe, structured JSON & safe fallback
+│   │   ├── digestGenerator.js  # Synthesizes daily briefing with transparent _source & ai_error
 │   │   ├── imapService.js      # Universal IMAP sync & MX/domain provider detector (any email ID)
 │   │   ├── microsoftService.js # Microsoft / Outlook / M365 OAuth 2.0 & Graph Mail.Read sync
 │   │   ├── localPersistence.js # Persistent disk inbox store, attachments cache & AES-256-GCM vault
-│   │   └── supabaseStore.js    # Unified Supabase schema adapter (emails + email_analysis + reminders)
+│   │   └── supabaseStore.js    # User-scoped Supabase adapter (emails, email_analysis, reminders, digests)
 │   ├── scripts/
+│   │   ├── dbCheck.js          # Live Supabase table, column & anon RLS enforcement verifier
 │   │   ├── testProcessor.js    # AI email analysis test suite (10/10 passing)
 │   │   ├── testDigest.js       # Academic digest generator test suite
 │   │   ├── testEmlParser.js    # .eml file mailparser test suite
 │   │   ├── testEndpoints.js    # Safeguards, hash deduplication & provider detection checks
-│   │   └── testHttpRoutes.js   # In-process Express HTTP route integration suite (12 checks)
+│   │   └── testHttpRoutes.js   # In-process Express HTTP route integration suite (14 checks)
 │   ├── tests/
 │   │   ├── collegeEmails.js    # Realistic Indian university email dataset (6 realistic + 3 tricky)
 │   │   └── runCollegeTests.js  # Test runner with verification matrix (36/36 checks, 100% accuracy)
-│   ├── schema.sql              # Supabase PostgreSQL schema with SHA-256 deduplication & indexes
+│   ├── schema.sql              # Supabase PostgreSQL schema with RLS, SHA-256 deduplication & view
 │   └── package.json
 │
 ├── extension/                  # Chrome MV3 Webmail Sync Extension (zero OAuth / zero IMAP)
@@ -103,10 +106,15 @@ PORT=5001
 CLIENT_URL=http://localhost:5173
 CORS_ORIGIN=http://localhost:5173
 
-# Gemini API Key (for LLM processing, summaries & reply drafts)
+# Gemini AI API Key (Primary: gemini-3.5-flash-lite, Fallback: gemini-3.7-flash)
 GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3.5-flash-lite
 
-# Supabase Credentials (leave blank to run in mock/sample-data mode)
+# AES-256-GCM Vault Key (Optional 32+ chars; auto-generates server/data/.keystore if blank)
+TOKEN_ENCRYPTION_KEY=
+
+# Supabase Credentials (leave blank to use persistent local JSON store in server/data/)
+# Note: RLS is enabled on all tables, so backend queries strictly use SUPABASE_SERVICE_ROLE_KEY.
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-supabase-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
@@ -121,13 +129,16 @@ MICROSOFT_CLIENT_SECRET=your-azure-app-client-secret
 MICROSOFT_TENANT_ID=common
 MICROSOFT_REDIRECT_URI=http://localhost:5001/api/auth/microsoft/callback
 
-# Client Deploy-Readiness (leave blank in dev)
-VITE_API_URL=
+# Optional Inbound Forwarding Webhook Secret:
+INBOUND_WEBHOOK_SECRET=
 ```
 
-> **Persistent Real Data & Zero-Setup Resilience:**
-> - Even without Supabase credentials, Campus Cue automatically persists your real synced emails, edits, reminders, digests, attachments, and AES-256-GCM encrypted session credentials locally in gitignored `server/data/`.
-> - Connecting any real inbox automatically replaces showcase sample items with your real email correspondence. If `GEMINI_API_KEY` is blank, Campus Cue uses deterministic offline heuristics; you can paste a Gemini key directly inside **Settings > Gemini AI Key** (saved locally to `server/.env`) to activate live extraction immediately without restarting.
+*(For production frontend deployment, set `VITE_API_URL` in `client/.env` or your frontend host settings; leave it unset in local dev so Vite proxies `/api` to `localhost:5001`.)*
+
+> **Persistent Real Data, Transparent AI & Zero-Setup Resilience:**
+> - Even without Supabase credentials, Campus Cue persists real synced emails, edits, reminders, digests, attachments, and AES-256-GCM encrypted session credentials locally in gitignored `server/data/`. Sample demo items are kept in-memory only and are never written to Supabase.
+> - On startup and on `GET /api/health`, the server runs a live Gemini probe (`gemini-3.5-flash-lite` with `gemini-3.7-flash` fallback) and reports `aiMode` (`live` or `offline`), active `model`, and any redacted `aiError`.
+> - If AI is unavailable or unconfigured, emails and digests are clearly marked **`Basic analysis (AI offline)`** (or **`AI Failed`** on runtime/API failure) with one-click **"Reprocess with AI"** / **"Reprocess all basic-analysis emails"** recovery actions in Settings and the inbox. You can also save/test a Gemini key live in **Settings > Gemini AI Key** without restarting.
 
 ### 4. Run Both Frontend and Backend
 Launch both services concurrently with a single command:
@@ -156,8 +167,9 @@ npm run test:ai         # AI Email Processor Suite (10/10 emails)
 npm run test:digest     # Academic Command Center Digest Suite
 npm run test:eml        # .EML Mailparser & Attachment Test
 npm run test:endpoints  # SHA-256 Deduplication, Date Safeguards & Provider Detection
-npm run test:http       # 12 Express HTTP Route Integration Tests
+npm run test:http       # 14 Express HTTP Route Integration Tests (401 auth, isolation, AI key redaction)
 npm run test:user       # UserContext Initials & Time-Based Greeting Flow
+npm run db:check        # Verify live Supabase tables, columns & anon RLS enforcement
 npm run build           # Production Frontend Build
 ```
 
@@ -167,25 +179,30 @@ npm run build           # Production Frontend Build
 
 Campus Cue is backed by a Supabase PostgreSQL schema defined in `server/schema.sql`.
 
-### Tables Overview:
-1. `emails`: Stores ingested raw emails (`id`, `user_id`, `source`, `external_id`, `content_hash`, `sender`, `sender_name`, `subject`, `body`, `attachments`, `is_read`, `received_at`, `created_at`).
+### Tables & Security Overview:
+1. `emails`: Stores ingested raw emails (`id`, `user_id`, `source`, `external_id`, `content_hash`, `recipient`, `sender`, `sender_name`, `subject`, `body`, `attachments`, `is_read`, `is_archived`, `received_at`, `created_at`).
    - Unique constraint: `CONSTRAINT uq_emails_user_content UNIQUE (user_id, content_hash)`.
-2. `email_analysis`: Stores AI intelligence and student overrides (`category`, `user_category`, `summary`, `priority`, `user_priority`, `priority_reason`, `deadline`, `user_deadline`, `deadline_confidence`, `required_action`, `needs_reply`, `needs_action`, `reminder_note`, `status`).
-3. `reminders`: Follow-up action items (`email_id`, `type`, `status`, `snoozed_until`).
-4. `digests`: Daily synthesized briefing (`user_id`, `date`, `content` JSONB, `created_at`).
-5. `user_tokens`: Secure storage for OAuth refresh and access tokens.
-6. `v_emails_with_analysis`: Unified PostgreSQL view calculating effective category, priority, and deadline (`COALESCE(user_category, category)`).
+2. `email_analysis`: Stores AI intelligence, transparency metadata, and student overrides (`category`, `user_category`, `summary`, `priority`, `user_priority`, `priority_reason`, `deadline`, `user_deadline`, `deadline_label`, `deadline_completed`, `deadline_confidence`, `required_action`, `needs_reply`, `needs_action`, `reminder_note`, `source`, `model`, `status`, `error`).
+3. `reminders`: Follow-up action items scoped per student (`user_id`, `email_id`, `type`, `status`, `snoozed_until`, with `CONSTRAINT uq_reminders_email UNIQUE (email_id)`).
+4. `digests`: Daily synthesized briefing (`user_id`, `date`, `content` JSONB containing `uncertain_deadlines` and confirmed briefings, `created_at`).
+5. `user_tokens`: Stores **AES-256-GCM encrypted** (`enc:v1:...`) OAuth access and refresh tokens per `(user_id, provider)`.
+6. `v_emails_with_analysis`: Unified PostgreSQL view calculating effective category, priority, deadline (`COALESCE(user_category, category)`), `deadline_label`, `analysis_source`, `analysis_status`, `analysis_error`, and `analysis_model`.
+7. **Row Level Security (RLS) & Strict User Isolation**:
+   - `ENABLE ROW LEVEL SECURITY` is active on all 5 tables (`emails`, `email_analysis`, `reminders`, `digests`, `user_tokens`), blocking unauthenticated `anon` reads (`0` rows).
+   - Every user data route requires `x-user-email` (`401 Unauthorized` + zero data when missing) and strictly isolates queries and mutations per student email.
 
 ### Setting Up Supabase:
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Go to the **SQL Editor** in your Supabase dashboard.
-3. Open `server/schema.sql`, copy all contents, and click **Run**.
-4. Retrieve your **Project URL** and **Anon Public Key** from **Project Settings > API**.
+3. Open [`server/schema.sql`](server/schema.sql), copy all contents, and click **Run** (safe to re-run on existing projects; drops and recreates `v_emails_with_analysis` cleanly).
+4. Retrieve your **Project URL**, **Anon Public Key**, and **Service Role Secret Key** from **Project Settings > API**.
 5. Paste them into `server/.env`:
    ```env
    SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
    SUPABASE_ANON_KEY=eyJhbGciOi...
+   SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
    ```
+6. Run `npm run db:check` to verify all tables, columns, view columns, and `anon` RLS blocking.
 
 ### Deduplication & Free-Tier Rate Limiting:
 - **Content Hash Deduplication**: Ingested emails compute a SHA-256 hash across `sender + subject + body`. If an email with the same hash exists, Campus Cue skips redundant LLM calls and reuses existing intelligence.
@@ -210,6 +227,11 @@ Campus Cue is backed by a Supabase PostgreSQL schema defined in `server/schema.s
    - On the Deadlines view, click **"Export Calendar (.ics)"** to instantly generate and download standard RFC 5545 iCalendar data (`campus_deadlines.ics`), compatible with Google Calendar, Apple Calendar, and Outlook.
 4. **Original Email Access**:
    - Raw headers, sender addresses, timestamps, content hashes, and unformatted bodies are accessible via the **"View original email"** modal in the email reader.
+5. **Transparent AI Status & Retries**:
+   - Live Gemini results are badged `AI-generated` with the active model recorded in `email_analysis.model` / `email_analysis.source`.
+   - Offline rule-based results (and heuristic digests built when Gemini is offline or returns `503`) are labeled **`Basic analysis (AI offline)`** across Inbox, Detail, and Digest views with a **"Reprocess with AI"** / **"Refresh Digest"** action.
+   - Failed Gemini analyses save `status: 'failed'` and a redacted `error` string, and render an **`AI Failed`** badge with a one-click **Retry** button.
+   - All API keys and tokens are redacted before logging or returning error details.
 
 ---
 
@@ -236,9 +258,9 @@ Campus Cue is backed by a Supabase PostgreSQL schema defined in `server/schema.s
 ### Demo Reset:
 To restore the sample emails, reminders, and daily digest to their initial showcase state:
 - Open **Settings** (gear icon in sidebar) > click **"Reset Demo"** (or **"Clear Samples"** to start an empty live inbox).
-- Or send an API request:
+- Or send an authenticated API request (`x-user-email` required):
   ```bash
-  curl -X POST http://localhost:5001/api/reset-demo
+  curl -X POST http://localhost:5001/api/reset-demo -H "x-user-email: student@college.edu"
   ```
 
 ---
@@ -246,9 +268,9 @@ To restore the sample emails, reminders, and daily digest to their initial showc
 ## ⚠️ Honest List of Known Limitations & Edge Cases
 
 1. **Institutional Google Workspace Admin Policies**:
-   - Many university Google accounts enforce strict admin restrictions blocking external OAuth applications. Campus Cue detects this restriction and falls back to drag-and-drop `.eml` ingestion.
-2. **Heuristic Engine vs. Live Gemini Model**:
-   - When running offline without a Gemini API key, the deterministic heuristic engine uses advanced regex and collegiate keyword patterns. While it scores 100% on standard Indian college formats, unusual non-standard formats may require student manual corrections.
+   - Many university Google accounts enforce strict admin restrictions blocking external OAuth applications. Campus Cue detects this restriction and supports drag-and-drop `.eml`/`.mbox` ingestion, clipboard paste, Chrome Extension sync, and inbound webhooks.
+2. **Heuristic Fallback vs. Live Gemini Model (`gemini-3.5-flash-lite`)**:
+   - When `GEMINI_API_KEY` is invalid, unset, or rate-limited/unavailable (`503` after trying `gemini-3.5-flash-lite` and `gemini-3.7-flash`), Campus Cue falls back transparently (`Basic analysis (AI offline)` or `AI Failed` with `Retry`) rather than mislabeling heuristic rules as Gemini AI. Extracted dates without timezone offsets default to UTC (`Z`) unless specified in the email.
 3. **Multipart Email Parsing**:
    - Complex HTML-only newsletters with heavy nested tables may have their layout simplified into plain text during ingestion.
 4. **Free-Tier Rate Limits**:
@@ -274,6 +296,8 @@ When you are ready to deploy Campus Cue to production hosting:
     - `CLIENT_URL=https://your-frontend-domain.com`
     - `CORS_ORIGIN=https://your-frontend-domain.com`
     - `GEMINI_API_KEY=...`
+    - `GEMINI_MODEL=gemini-3.5-flash-lite`
+    - `TOKEN_ENCRYPTION_KEY=...`
     - `SUPABASE_URL=...`
     - `SUPABASE_ANON_KEY=...`
     - `SUPABASE_SERVICE_ROLE_KEY=...`
